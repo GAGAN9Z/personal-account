@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { api } from '../utils/api';
 import type { RootState } from './index';
 import type { ArticlesState } from '../utils/interfaces';
-import { createNote, deleteNote } from './notesSlice';
+import { createNote, deleteNote, fetchNotesByArticle } from './notesSlice';
 
 const initialState: ArticlesState = {
   items: [],
@@ -41,7 +41,7 @@ export const createArticle = createAsyncThunk(
     title: string; 
     content: string; 
     author: string;
-    poster?: File | null;  // опциональная картинка
+    poster?: File | null;
   }) => {
     const response = await api.createArticle({ title, content, author, poster });
     return response.data;
@@ -66,30 +66,6 @@ const articlesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // создание коммента
-      .addCase(createNote.fulfilled, (state, action) => {
-        const newNote = action.payload;
-        // получние documentId статьи из комментария
-        const articleId = typeof newNote.article === 'object'
-          ? (newNote.article as any)?.documentId
-          : newNote.article;
-        
-        const article = state.items.find(a => a.documentId === articleId);
-        if (article) {
-          if (!article.notes) article.notes = [];
-          article.notes.unshift(newNote);
-        }
-      })
-      
-      // удаление коммента
-      .addCase(deleteNote.fulfilled, (state, action) => {
-        const { noteDocumentId, articleDocumentId } = action.payload;
-        const article = state.items.find(a => a.documentId === articleDocumentId);
-        if (article && article.notes) {
-          article.notes = article.notes.filter(n => n.documentId !== noteDocumentId);
-        }
-      })
-      
       // извлечение всех статей
       .addCase(fetchAllArticles.pending, (state) => {
         state.loading = true;
@@ -158,6 +134,50 @@ const articlesSlice = createSlice({
       .addCase(deleteArticle.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Ошибка удаления статьи';
+      })
+
+      // ОБРАБОТКА СОЗДАНИЯ КОММЕНТАРИЯ ИЗ notesSlice
+      .addCase(createNote.fulfilled, (state, action) => {
+        const newNote = action.payload;
+        // Получаем ID статьи из комментария
+        let articleId: string | null = null;
+        
+        if (typeof newNote.article === 'object' && newNote.article !== null) {
+          articleId = (newNote.article as any)?.documentId || null;
+        } else if (typeof newNote.article === 'string') {
+          articleId = newNote.article;
+        } else if (typeof newNote.article === 'number') {
+          articleId = String(newNote.article);
+        }
+        
+        if (articleId) {
+          const articleIndex = state.items.findIndex(a => a.documentId === articleId);
+          if (articleIndex !== -1) {
+            const article = state.items[articleIndex];
+            const updatedNotes = article.notes ? [newNote, ...article.notes] : [newNote];
+            state.items[articleIndex] = { ...article, notes: updatedNotes };
+          }
+        }
+      })
+      
+      // ОБРАБОТКА УДАЛЕНИЯ КОММЕНТАРИЯ
+      .addCase(deleteNote.fulfilled, (state, action) => {
+        const { noteDocumentId, articleDocumentId } = action.payload;
+        const articleIndex = state.items.findIndex(a => a.documentId === articleDocumentId);
+        if (articleIndex !== -1 && state.items[articleIndex].notes) {
+          state.items[articleIndex].notes = state.items[articleIndex].notes!.filter(
+            n => n.documentId !== noteDocumentId
+          );
+        }
+      })
+
+      // ЗАГРУЗКА КОММЕНТАРИЕВ - обновляем notes в статье
+      .addCase(fetchNotesByArticle.fulfilled, (state, action) => {
+        const { articleId, notes } = action.payload;
+        const articleIndex = state.items.findIndex(a => a.documentId === articleId);
+        if (articleIndex !== -1) {
+          state.items[articleIndex] = { ...state.items[articleIndex], notes };
+        }
       });
   }
 });

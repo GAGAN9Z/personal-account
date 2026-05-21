@@ -98,18 +98,18 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
         <p className="auth-title">{user.email}</p>
         
         {/* возраст */}
-        {(user as any).age && (
-          <p className="profile-age">Возраст: {(user as any).age} лет</p>
+        {user.age && (
+          <p className="profile-age">Возраст: {user.age} лет</p>
         )}
         
         {/* телефон */}
-        {(user as any).phone && (
-          <p className="profile-phone">Телефон: {(user as any).phone}</p>
+        {user.phone && (
+          <p className="profile-phone">Телефон: {user.phone}</p>
         )}
         
         {/* о себе */}
-        {(user as any).bio && (
-          <p className="profile-bio">О себе: {(user as any).bio}</p>
+        {user.bio && (
+          <p className="profile-bio">О себе: {user.bio}</p>
         )}
         
         <nav className="profile-actions" aria-label="Управление профилем">

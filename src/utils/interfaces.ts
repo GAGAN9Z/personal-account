@@ -43,7 +43,7 @@ export interface Article {
   updatedAt: string;
   publishedAt: string;
   author?: User;
-  notes?: Note[]; 
+  notes?: Note[];
 }
 export interface ArticlesState {
   items: Article[];
@@ -147,5 +147,5 @@ export interface EditProfileFormData {
   email: string;
   bio: string;
   phone: string;
-  age: number;
+  age: string;
 }

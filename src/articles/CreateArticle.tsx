@@ -25,20 +25,20 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Валидация файла
+    // валидация файла
     const validationErrors = validateArticle({ ...articleData, poster: file });
     if (validationErrors.poster) {
       setErrors(prev => ({ ...prev, poster: validationErrors.poster as string }));
       return;
     }
     
-    // Создаем превью
+    // создаем превью
     const previewUrl = URL.createObjectURL(file);
     setImagePreview(previewUrl);
     
-    // Сохраняем файл в состояние
+    // сохраняем файл в состояние
     setArticleData({ ...articleData, poster: file });
-    // Удаляем ошибку poster из состояния
+    // удаляем ошибку poster из состояния
     setErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors.poster;
@@ -52,7 +52,7 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    // Удаляем ошибку poster из состояния
+    // удаляем ошибку poster из состояния
     setErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors.poster;
@@ -75,7 +75,12 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
     }
     
     onSubmit(e);
-  }, [articleData, onSubmit]);
+    
+    if (Object.keys(validationErrors).length === 0) {
+        setErrors({});
+        setTouched({});
+    }
+  }, [articleData, onSubmit, setArticleData]);
 
   return (
     <section className="card-base create-post" aria-labelledby="create-post-title">
@@ -99,7 +104,7 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
           )}
         </div>
         
-        {/* Поле для загрузки изображения */}
+        {/* поле для загрузки изображения */}
         <div className="form-group">
           <label htmlFor="post-poster">Изображение публикации (опционально)</label>
           <div className="poster-upload">

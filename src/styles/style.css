@@ -359,7 +359,7 @@ textarea.error:focus {
   text-align: center;
 }
 
-/* АВАТАР */
+/* 8. АВАТАР */
 .profile-avatar {
   width: 120px;
   height: 120px;
@@ -499,4 +499,10 @@ textarea.error:focus {
   padding-bottom: 16px;
   margin-bottom: 16px;
 }
-
+/* Лоадер для комментариев */
+.comments-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-light);
+  font-size: 14px;
+}

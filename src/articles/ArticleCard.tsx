@@ -1,10 +1,9 @@
-import React, { memo, useMemo, useState, useCallback } from 'react';
+import React, { memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from '../store';
-import { createNote, deleteNote, selectNotesLoading, selectNotesError } from '../store/notesSlice';
+import { createNote, deleteNote, fetchNotesByArticle, selectNotesLoading } from '../store/notesSlice';
 import { validateComment } from '../utils/validators';
-import type { ArticleCardProps } from '../utils/interfaces';
-import StatusWrapper from '../components/hoc/StatusWrapper';
+import type { ArticleCardProps, Note } from '../utils/interfaces';
 
 const API_BASE_URL = 'http://localhost:1337';
 
@@ -14,9 +13,33 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
   const [commentText, setCommentText] = useState('');
   const [commentError, setCommentError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [hasLoadedComments, setHasLoadedComments] = useState(false);
+  
+  // Получаем статусы загрузки
   const notesLoading = useSelector(selectNotesLoading);
-  const notesError = useSelector(selectNotesError);
+  
+  // Локальное состояние для комментариев этой статьи - всегда массив
+  const [localNotes, setLocalNotes] = useState<Note[]>(article.notes || []);
+  
+  // Обновляем локальные комментарии когда article обновляется (например, после перезагрузки страницы)
+  useEffect(() => {
+    if (article.notes) {
+      setLocalNotes(article.notes);
+      setHasLoadedComments(true);
+    }
+  }, [article.notes]);
+
+  // Загружаем комментарии при открытии (только один раз)
+  useEffect(() => {
+    if (showComments && !hasLoadedComments && !notesLoading) {
+      dispatch(fetchNotesByArticle(article.documentId)).then((action) => {
+        if (fetchNotesByArticle.fulfilled.match(action)) {
+          setLocalNotes(action.payload.notes);
+          setHasLoadedComments(true);
+        }
+      });
+    }
+  }, [showComments, article.documentId, dispatch, hasLoadedComments, notesLoading]);
 
   if (!article) return null;
 
@@ -35,9 +58,19 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
   }, [article.createdAt]);
 
   const isAuthor = currentUserDocumentId === article.author?.documentId;
-  
-  // Формируем URL постера
   const imageUrl = article.image?.url ? `${API_BASE_URL}${article.image.url}` : null;
+  
+  // Счетчик берем из локальных комментариев (они всегда актуальны)
+  const commentsCount = localNotes.length;
+
+  const handleToggleComments = useCallback(() => {
+    setShowComments(prev => !prev);
+  }, []);
+
+  const handleCommentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCommentText(e.target.value);
+    if (commentError) setCommentError(null);
+  }, [commentError]);
 
   const handleSubmitComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,12 +83,14 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
     
     setIsSubmitting(true);
     try {
-      await dispatch(createNote({
+      const result = await dispatch(createNote({
         text: commentText,
         article: article.documentId,
         author: currentUserDocumentId || ''
       })).unwrap();
       
+      // Добавляем новый комментарий в локальное состояние - счетчик обновится мгновенно
+      setLocalNotes(prev => [result, ...prev]);
       setCommentText('');
       setCommentError(null);
     } catch (err) {
@@ -69,10 +104,16 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
     if (!window.confirm('Удалить комментарий?')) return;
     try {
       await dispatch(deleteNote({ noteDocumentId, articleDocumentId: article.documentId })).unwrap();
+      // Удаляем комментарий из локального состояния - счетчик обновится мгновенно
+      setLocalNotes(prev => prev.filter(n => n.documentId !== noteDocumentId));
     } catch (err) {
       console.error('Ошибка удаления комментария:', err);
     }
   }, [dispatch, article.documentId]);
+
+  const handleDeleteArticle = useCallback(() => {
+    onDelete(article.documentId);
+  }, [onDelete, article.documentId]);
 
   return (
     <article className="post-card">
@@ -83,12 +124,11 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
         </time>
       </header>
       
-      {/* Отображение постера */}
       {imageUrl && (
         <div className="post-poster">
-          <img 
-            src={imageUrl} 
-            alt={`Изображение к статье: ${article.title}`} 
+          <img
+            src={imageUrl}
+            alt={`Изображение к статье: ${article.title}`}
             className="poster-image"
           />
         </div>
@@ -98,25 +138,25 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
       
       <footer className="post-footer">
         <div className="post-stats">
-          <span 
+          <span
             className="comment-display"
-            onClick={() => setShowComments(!showComments)}
+            onClick={handleToggleComments}
             style={{ cursor: 'pointer' }}
           >
-            {article.notes?.length || 0} комментариев
+            {commentsCount} комментариев
           </span>
         </div>
         <div className="post-actions">
-          <button 
-            className="link-btn post-action" 
-            onClick={() => setShowComments(!showComments)}
+          <button
+            className="link-btn post-action"
+            onClick={handleToggleComments}
           >
             {showComments ? 'Скрыть' : 'Комментарии'}
           </button>
           {isAuthor && (
-            <button 
-              type="button" 
-              onClick={() => onDelete(article.documentId)} 
+            <button
+              type="button"
+              onClick={handleDeleteArticle}
               className="link-btn danger"
               aria-label="Удалить публикацию"
             >
@@ -133,10 +173,7 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
               <textarea
                 placeholder="Написать комментарий..."
                 value={commentText}
-                onChange={(e) => {
-                  setCommentText(e.target.value);
-                  if (commentError) setCommentError(null);
-                }}
+                onChange={handleCommentChange}
                 disabled={isSubmitting}
                 rows={3}
               />
@@ -147,22 +184,20 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
             </button>
           </form>
 
-          <StatusWrapper 
-            loading={notesLoading} 
-            error={notesError}
-            isEmpty={!article.notes || article.notes.length === 0}
-          >
-            <div className="comments-list">
-              <h5>Комментарии:</h5>
-              {article.notes?.map((note) => (
+          <div className="comments-list">
+            <h5>Комментарии:</h5>
+            {localNotes.length === 0 && !notesLoading ? (
+              <p>Нет комментариев. Будьте первым!</p>
+            ) : (
+              localNotes.map((note) => (
                 <div key={note.documentId} className="comment-item">
                   <div className="comment-header">
-                    <strong>{note.author?.username + ' ' || 'Пользователь '}</strong>
+                    <strong>{note.author?.username || 'Пользователь'}</strong>
                     <small>{new Date(note.createdAt).toLocaleString('ru-RU')}</small>
                   </div>
                   <p className="comment-text">{note.text}</p>
                   {currentUserDocumentId === note.author?.documentId && (
-                    <button 
+                    <button
                       onClick={() => handleDeleteComment(note.documentId)}
                       className="link-btn danger"
                     >
@@ -170,9 +205,9 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
                     </button>
                   )}
                 </div>
-              ))}
-            </div>
-          </StatusWrapper>
+              ))
+            )}
+          </div>
         </div>
       )}
     </article>

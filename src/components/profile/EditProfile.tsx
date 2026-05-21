@@ -16,9 +16,9 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, isOpen, onClose }) => {
   const [formData, setFormData] = useState<EditProfileFormData>({
     username: user.username || '',
     email: user.email || '',
-    bio: (user as any).bio || '',
-    phone: (user as any).phone || '',
-    age: (user as any).age?.toString() || '',
+    bio: user.bio || '',
+    phone: user.phone || '',
+    age: user.age?.toString() || '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
@@ -28,9 +28,9 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, isOpen, onClose }) => {
     setFormData({
       username: user.username || '',
       email: user.email || '',
-      bio: (user as any).bio || '',
-      phone: (user as any).phone || '',
-      age: (user as any).age?.toString() || '',
+      bio: user.bio || '',
+      phone: user.phone || '',
+      age: user.age?.toString() || '',
     });
   }, [user]);
 
@@ -73,7 +73,7 @@ const EditProfile: React.FC<EditProfileProps> = ({ user, isOpen, onClose }) => {
         email: formData.email,
         bio: formData.bio,
         phone: formData.phone,
-        age: formData.age,
+        age: formData.age ? parseInt(formData.age) : undefined,
       })).unwrap();
       
       onClose();

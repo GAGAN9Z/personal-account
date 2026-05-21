@@ -63,30 +63,7 @@ const Profile: React.FC = () => {
     }
   }, [isAuth, user?.documentId, activeFilter, loadArticles]);
   
-  useEffect(() => {
-    const loadFreshUser = async () => {
-      try {
-        const jwt = localStorage.getItem('jwt');
-        if (!jwt) return;
-        
-        const response = await fetch('http://localhost:1337/api/users/me?populate[avatar]=*', {
-          headers: { 'Authorization': `Bearer ${jwt}` }
-        });
-        const freshUser = await response.json();
-        
-        if (freshUser) {
-          localStorage.setItem('user', JSON.stringify(freshUser));
-          if (freshUser.avatar && !user?.avatar) {
-            window.location.reload();
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    
-    loadFreshUser();
-  }, []);
+  // УДАЛЕН useEffect с запросом /users/me - эта логика должна быть в authSlice
   
   const handleLogout = useCallback(() => {
     dispatch(logout());
@@ -106,6 +83,7 @@ const Profile: React.FC = () => {
         poster: articleData.poster
       })).unwrap();
       
+      // Сброс формы
       setArticleData({ title: '', content: '', poster: null });
       loadArticles();
     } catch (err) {
@@ -121,11 +99,12 @@ const Profile: React.FC = () => {
     
     try {
       await dispatch(deleteArticle(documentId)).unwrap();
+      loadArticles();
     } catch (err) {
       console.error("Ошибка удаления:", err);
       alert("Не удалось удалить статью на сервере");
     }
-  }, [dispatch, isAuth]);
+  }, [dispatch, isAuth, loadArticles]);
   
   if (!user) return null;
   
