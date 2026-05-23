@@ -48,14 +48,14 @@ export const api = {
 
   async getArticlesByAuthor(authorDocumentId: string): Promise<ArticlesResponse> {
     const { data } = await $api.get<ArticlesResponse>(
-      `/articles?filters[author][documentId][$eq]=${authorDocumentId}&populate=*&sort=createdAt:desc`
+      `/articles?filters[author][documentId][$eq]=${authorDocumentId}&populate[author]=true&populate[image]=true&populate[notes][populate][author]=true&sort=createdAt:desc`
     );
     return data;
   },
 
   async getCommentedArticles(userDocumentId: string): Promise<ArticlesResponse> {
     const { data } = await $api.get<ArticlesResponse>(
-      `/articles?filters[notes][author][documentId][$eq]=${userDocumentId}&populate=*&sort=createdAt:desc`
+      `/articles?filters[notes][author][documentId][$eq]=${userDocumentId}&populate[author]=true&populate[image]=true&populate[notes][populate][author]=true&sort=createdAt:desc`
     );
     return data;
   },
