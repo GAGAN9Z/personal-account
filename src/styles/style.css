@@ -506,3 +506,29 @@ textarea.error:focus {
   color: var(--text-light);
   font-size: 14px;
 }
+/* Добавьте в style.css */
+.post-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.post-actions .link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.post-actions .link-btn:hover {
+  background: rgba(79, 70, 229, 0.1);
+}
+.post-actions .link-btn.danger {
+  color: #dc2626;
+}
+.post-actions .link-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
