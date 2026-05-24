@@ -1,6 +1,17 @@
-import React, { memo, useState, useCallback, useRef } from 'react';
+import React, { memo, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { CreateArticleProps } from '../utils/interfaces';
 import { validateArticle, type FormErrors } from '../utils/validators';
+
+// функция сравнения
+const areEqual = (prevProps: CreateArticleProps & { isLoading?: boolean }, nextProps: CreateArticleProps & { isLoading?: boolean }) => {
+  return (
+    prevProps.articleData.title === nextProps.articleData.title &&
+    prevProps.articleData.content === nextProps.articleData.content &&
+    prevProps.articleData.poster === nextProps.articleData.poster &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.onSubmit === nextProps.onSubmit
+  );
+};
 
 const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = memo(({
   articleData,
@@ -13,6 +24,16 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (articleData.poster === null && imagePreview !== null) {
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [articleData.poster, imagePreview]);
+
+  // мемоизация обработчиков
   const handleChange = useCallback((field: 'title' | 'content', value: string) => {
     const newData = { ...articleData, [field]: value };
     setArticleData(newData);
@@ -25,20 +46,15 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // валидация файла
     const validationErrors = validateArticle({ ...articleData, poster: file });
     if (validationErrors.poster) {
       setErrors(prev => ({ ...prev, poster: validationErrors.poster as string }));
       return;
     }
     
-    // создаем превью
     const previewUrl = URL.createObjectURL(file);
     setImagePreview(previewUrl);
-    
-    // сохраняем файл в состояние
     setArticleData({ ...articleData, poster: file });
-    // удаляем ошибку poster из состояния
     setErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors.poster;
@@ -52,7 +68,6 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    // удаляем ошибку poster из состояния
     setErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors.poster;
@@ -80,7 +95,13 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
         setErrors({});
         setTouched({});
     }
-  }, [articleData, onSubmit, setArticleData]);
+  }, [articleData, onSubmit]);
+
+  // мемоизация условия disabled
+  const isDisabled = useMemo(() =>
+    isLoading || !articleData.title.trim() || !articleData.content.trim(),
+    [isLoading, articleData.title, articleData.content]
+  );
 
   return (
     <section className="card-base create-post" aria-labelledby="create-post-title">
@@ -104,7 +125,6 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
           )}
         </div>
         
-        {/* поле для загрузки изображения */}
         <div className="form-group">
           <label htmlFor="post-poster">Изображение публикации (опционально)</label>
           <div className="poster-upload">
@@ -120,9 +140,9 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
             {imagePreview && (
               <div className="poster-preview">
                 <img src={imagePreview} alt="Предпросмотр" />
-                <button 
-                  type="button" 
-                  className="link-btn danger" 
+                <button
+                  type="button"
+                  className="link-btn danger"
                   onClick={handleRemoveImage}
                 >
                   Удалить изображение
@@ -147,7 +167,7 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
             disabled={isLoading}
             className={touched.content && errors.content ? 'error' : ''}
             required
-          ></textarea>
+          />
           {touched.content && errors.content && (
             <p className="form-error">{errors.content}</p>
           )}
@@ -156,14 +176,14 @@ const CreateArticle: React.FC<CreateArticleProps & { isLoading?: boolean }> = me
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={isLoading || !articleData.title.trim() || !articleData.content.trim()}
+          disabled={isDisabled}
         >
           {isLoading ? 'Публикация...' : 'Опубликовать'}
         </button>
       </form>
     </section>
   );
-});
+}, areEqual);
 
 CreateArticle.displayName = 'CreateArticle';
 export default CreateArticle;

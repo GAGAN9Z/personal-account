@@ -149,3 +149,45 @@ export interface EditProfileFormData {
   phone: string;
   age: string;
 }
+export interface ArticleWithNotes extends Article {
+  notes?: Note[];
+}
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    pagination: {
+      page: number;
+      pageSize: number;
+      pageCount: number;
+      total: number;
+    };
+  };
+}
+export interface FileUploadResponse {
+  id: number;
+  name: string;
+  url: string;
+  size: number;
+  mime: string;
+}
+export interface ApiError {
+  status: number;
+  name: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+export interface EditProfileProps {
+  user: User;
+  isOpen: boolean;
+  onClose: () => void;
+}
+export interface ArticleFormData {
+  title: string;
+  content: string;
+  poster?: File | null;
+}
+export type FilterType = 'all' | 'my' | 'commented';
+export interface ExtendedArticleListProps extends ArticleListProps {
+  activeFilter?: FilterType;
+  onFilterChange?: (filter: FilterType) => void;
+}

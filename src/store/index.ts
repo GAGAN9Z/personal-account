@@ -3,6 +3,10 @@ import authReducer from './authSlice';
 import articlesReducer from './articlesSlice';
 import notesReducer from './notesSlice';
 
+export * from './notesThunks';
+export * from './authSlice';
+export * from './articlesSlice';
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,

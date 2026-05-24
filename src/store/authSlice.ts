@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction, isAnyOf } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { api } from '../utils/api';
-import type { RootState } from '../store';
+import type { RootState, AppDispatch } from '../store';
 import type { User, RegisterResponse, AuthState, UpdateUserPayload } from '../utils/interfaces';
 
 const saveAuthData = (jwt: string, user: User) => {
@@ -17,7 +17,7 @@ const getErrorMessage = (err: unknown): string => {
   return 'Произошла неизвестная ошибка';
 };
 
-export const registerUser = createAsyncThunk<RegisterResponse, Record<string, string>, { 
+export const registerUser = createAsyncThunk<RegisterResponse, Record<string, string>, {
 rejectValue: string }>(
   'auth/register',
   async (formData, { rejectWithValue }) => {
@@ -31,14 +31,46 @@ rejectValue: string }>(
   }
 );
 
-export const loginUser = createAsyncThunk<RegisterResponse, Record<string, string>, { 
-rejectValue: string }>(
+export const loginUser = createAsyncThunk<RegisterResponse, Record<string, string>, {
+  rejectValue: string,
+  dispatch: AppDispatch
+}>(
   'auth/login',
   async (formData, { rejectWithValue }) => {
     try {
       const data = await api.login(formData);
+      
+      // Сначала сохраняем базовые данные
       saveAuthData(data.jwt, data.user);
-      return data;
+      
+      // Затем загружаем полные данные с аватаром
+      try {
+        const userWithAvatar = await api.getMeWithAvatar();
+        const jwt = localStorage.getItem('jwt');
+        if (jwt) {
+          localStorage.setItem('user', JSON.stringify(userWithAvatar));
+        }
+        return { jwt: data.jwt, user: userWithAvatar };
+      } catch (avatarError) {
+        // Если не удалось загрузить аватар, возвращаем базовые данные
+        console.warn('Failed to load avatar:', avatarError);
+        return data;
+      }
+    } catch (err) {
+      return rejectWithValue(getErrorMessage(err));
+    }
+  }
+);
+export const fetchUserWithAvatar = createAsyncThunk<User, void, { rejectValue: string }>(
+  'auth/fetchAvatar',
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await api.getMeWithAvatar();
+      const jwt = localStorage.getItem('jwt');
+      if (jwt){
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+      return user;
     } catch (err) {
       return rejectWithValue(getErrorMessage(err));
     }
@@ -115,7 +147,9 @@ export const changeAvatar = createAsyncThunk<User, File, { rejectValue: string }
 const getSavedUser = (): User | null => {
   try {
     const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    const user = JSON.parse(saved);
+    return user;
   } catch { return null; }
 };
 
@@ -133,7 +167,8 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
-      localStorage.clear(); 
+      localStorage.removeItem('jwt');
+      localStorage.removeItem('user');
     },
     clearError: (state) => {
       state.error = null;

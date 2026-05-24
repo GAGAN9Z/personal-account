@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useCallback } from 'react';
+import React, { memo, useState, useRef, useCallback, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '../../store';
 import { changeAvatar } from '../../store/authSlice';
@@ -6,6 +6,17 @@ import type { UserInfoProps } from '../../utils/interfaces';
 import EditProfile from './EditProfile';
 
 const API_BASE_URL = 'http://localhost:1337';
+
+// добавление функции сравнения
+const areEqual = (prevProps: UserInfoProps, nextProps: UserInfoProps) => {
+  return (
+    prevProps.user?.id === nextProps.user?.id &&
+    prevProps.user?.username === nextProps.user?.username &&
+    prevProps.user?.email === nextProps.user?.email &&
+    prevProps.user?.avatar?.url === nextProps.user?.avatar?.url &&
+    prevProps.onLogout === nextProps.onLogout
+  );
+};
 
 const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -21,13 +32,11 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // проверка типа файла
     if (!file.type.startsWith('image/')) {
       alert('Пожалуйста, выберите изображение');
       return;
     }
     
-    // проверка размера (максимум 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('Размер файла не должен превышать 5MB');
       return;
@@ -47,6 +56,18 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
     }
   }, [dispatch]);
 
+  // мемоизирация URL аватара
+  const avatarUrl = useMemo(() =>
+    user?.avatar?.url ? `${API_BASE_URL}${user.avatar.url}` : null,
+    [user?.avatar?.url]
+  );
+
+  // мемоизация инициала для placeholder'а
+  const avatarInitial = useMemo(() => 
+    user?.username?.charAt(0).toUpperCase() || '?',
+    [user?.username]
+  );
+
   if (!user || !user.username) {
     return (
       <aside className="profile-card">
@@ -54,9 +75,6 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
       </aside>
     );
   }
-
-  // формирование URL аватара
-  const avatarUrl = user.avatar?.url ? `${API_BASE_URL}${user.avatar.url}` : null;
 
   return (
     <>
@@ -77,7 +95,7 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
             />
           ) : (
             <div className="avatar-placeholder">
-              {user.username.charAt(0).toUpperCase()}
+              {avatarInitial}
             </div>
           )}
           {isUploading && (
@@ -97,17 +115,14 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
         <h2 className="auth-title">{user.username}</h2>
         <p className="auth-title">{user.email}</p>
         
-        {/* возраст */}
         {user.age && (
           <p className="profile-age">Возраст: {user.age} лет</p>
         )}
         
-        {/* телефон */}
         {user.phone && (
           <p className="profile-phone">Телефон: {user.phone}</p>
         )}
         
-        {/* о себе */}
         {user.bio && (
           <p className="profile-bio">О себе: {user.bio}</p>
         )}
@@ -129,7 +144,7 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
       />
     </>
   );
-});
+}, areEqual);
 
 UserInfo.displayName = 'UserInfo';
 export default UserInfo;

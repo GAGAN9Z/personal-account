@@ -2,21 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { AppDispatch } from '../store';
-import { logout, selectUser, selectIsAuth } from '../store/authSlice';
+import { logout, selectUser, selectIsAuth, fetchUserWithAvatar } from '../store/authSlice';
 import { fetchAllArticles, fetchMyArticles, fetchCommentedArticles, createArticle, deleteArticle, selectArticles, selectArticlesLoading, selectArticlesError } from '../store/articlesSlice';
 import UserInfo from '../components/profile/UserInfo';
 import CreateArticle from '../articles/CreateArticle';
 import ArticleList from '../articles/ArticleList';
 import StatusWrapper from './hoc/StatusWrapper';
-
-type FilterType = 'all' | 'my' | 'commented';
-
-// создание типа для формы создания статьи
-interface ArticleFormData {
-  title: string;
-  content: string;
-  poster?: File | null;
-}
+import type { ArticleFormData, FilterType } from '../utils/interfaces';
 
 const Profile: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -42,6 +34,13 @@ const Profile: React.FC = () => {
     }
   }, [isAuth, navigate]);
   
+  useEffect(() => {
+    if (isAuth && user?.id){
+      dispatch(fetchUserWithAvatar());
+    }
+  }, [isAuth, user?.id, dispatch]);
+
+  
   const loadArticles = useCallback(() => {
     if (!user?.documentId) return;
     
@@ -63,8 +62,6 @@ const Profile: React.FC = () => {
     }
   }, [isAuth, user?.documentId, activeFilter, loadArticles]);
   
-  // УДАЛЕН useEffect с запросом /users/me - эта логика должна быть в authSlice
-  
   const handleLogout = useCallback(() => {
     dispatch(logout());
     navigate('/login');
@@ -73,7 +70,7 @@ const Profile: React.FC = () => {
   const handleCreateArticle = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.documentId || !isAuth) return;
-    
+
     setIsPublishing(true);
     try {
       await dispatch(createArticle({
@@ -83,7 +80,7 @@ const Profile: React.FC = () => {
         poster: articleData.poster
       })).unwrap();
       
-      // Сброс формы
+      // Сброс формы ПОЛНОСТЬЮ, включая картинку
       setArticleData({ title: '', content: '', poster: null });
       loadArticles();
     } catch (err) {
@@ -91,7 +88,7 @@ const Profile: React.FC = () => {
     } finally {
       setIsPublishing(false);
     }
-  }, [dispatch, user, isAuth, articleData, loadArticles]);
+  }, [dispatch, user, isAuth, articleData, loadArticles, setArticleData]);
   
   const handleDeleteArticle = useCallback(async (documentId: string) => {
     if (!isAuth || !documentId) return;

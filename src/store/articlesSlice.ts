@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { api } from '../utils/api';
 import type { RootState } from './index';
 import type { ArticlesState } from '../utils/interfaces';
-import { createNote, deleteNote, fetchNotesByArticle } from './notesSlice';
+import { createNote, deleteNote, fetchNotesByArticle } from './notesThunks';
 
 const initialState: ArticlesState = {
   items: [],
@@ -10,7 +10,7 @@ const initialState: ArticlesState = {
   error: null
 };
 
-// асинхронные действия
+// Асинхронные действия
 export const fetchAllArticles = createAsyncThunk(
   'articles/fetchAll',
   async () => {
@@ -37,9 +37,9 @@ export const fetchCommentedArticles = createAsyncThunk(
 
 export const createArticle = createAsyncThunk(
   'articles/create',
-  async ({ title, content, author, poster }: { 
-    title: string; 
-    content: string; 
+  async ({ title, content, author, poster }: {
+    title: string;
+    content: string;
     author: string;
     poster?: File | null;
   }) => {
@@ -51,10 +51,29 @@ export const createArticle = createAsyncThunk(
 export const deleteArticle = createAsyncThunk(
   'articles/delete',
   async (documentId: string) => {
+    const articleResponse = await api.getArticleById(documentId);
+    const article = articleResponse.data;
+    if (article.notes && article.notes.length > 0) {
+      for (const note of article.notes) {
+        await api.deleteNote(note.documentId);
+      }
+    }
     await api.deleteArticle(documentId);
     return documentId;
   }
 );
+
+// вспомогательная функция для обработки pending
+const handlePending = (state: ArticlesState) => {
+  state.loading = true;
+  state.error = null;
+};
+
+// вспомогательная функция для обработки rejected
+const handleRejected = (state: ArticlesState, action: { error?: { message?: string } }) => {
+  state.loading = false;
+  state.error = action.error?.message || 'Ошибка';
+};
 
 const articlesSlice = createSlice({
   name: 'articles',
@@ -66,88 +85,56 @@ const articlesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // извлечение всех статей
-      .addCase(fetchAllArticles.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // fetchAllArticles
+      .addCase(fetchAllArticles.pending, handlePending)
       .addCase(fetchAllArticles.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload;
       })
-      .addCase(fetchAllArticles.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Ошибка загрузки статей';
-      })
+      .addCase(fetchAllArticles.rejected, handleRejected)
       
-      // извлечение статей пользователя
-      .addCase(fetchMyArticles.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // fetchMyArticles
+      .addCase(fetchMyArticles.pending, handlePending)
       .addCase(fetchMyArticles.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload;
       })
-      .addCase(fetchMyArticles.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Ошибка загрузки статей';
-      })
+      .addCase(fetchMyArticles.rejected, handleRejected)
       
-      // извлечение прокомментированных статей
-      .addCase(fetchCommentedArticles.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // fetchCommentedArticles
+      .addCase(fetchCommentedArticles.pending, handlePending)
       .addCase(fetchCommentedArticles.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload;
       })
-      .addCase(fetchCommentedArticles.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Ошибка загрузки статей';
-      })
+      .addCase(fetchCommentedArticles.rejected, handleRejected)
       
-      // создание статьи
-      .addCase(createArticle.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // createArticle
+      .addCase(createArticle.pending, handlePending)
       .addCase(createArticle.fulfilled, (state, action) => {
         state.loading = false;
         state.items = [action.payload, ...state.items];
       })
-      .addCase(createArticle.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Ошибка создания статьи';
-      })
+      .addCase(createArticle.rejected, handleRejected)
       
-      // удаление статьи
-      .addCase(deleteArticle.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // deleteArticle
+      .addCase(deleteArticle.pending, handlePending)
       .addCase(deleteArticle.fulfilled, (state, action) => {
         state.loading = false;
         state.items = state.items.filter(a => a.documentId !== action.payload);
       })
-      .addCase(deleteArticle.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Ошибка удаления статьи';
-      })
+      .addCase(deleteArticle.rejected, handleRejected)
 
-      // ОБРАБОТКА СОЗДАНИЯ КОММЕНТАРИЯ ИЗ notesSlice
+      // обработка создания комментария
       .addCase(createNote.fulfilled, (state, action) => {
         const newNote = action.payload;
-        // Получаем ID статьи из комментария
+        
         let articleId: string | null = null;
         
-        if (typeof newNote.article === 'object' && newNote.article !== null) {
-          articleId = (newNote.article as any)?.documentId || null;
+        if (newNote.article && typeof newNote.article === 'object' && 'documentId' in newNote.article) {
+          articleId = newNote.article.documentId;
         } else if (typeof newNote.article === 'string') {
           articleId = newNote.article;
-        } else if (typeof newNote.article === 'number') {
-          articleId = String(newNote.article);
         }
         
         if (articleId) {
@@ -160,7 +147,7 @@ const articlesSlice = createSlice({
         }
       })
       
-      // ОБРАБОТКА УДАЛЕНИЯ КОММЕНТАРИЯ
+      // обработка удаления комментария
       .addCase(deleteNote.fulfilled, (state, action) => {
         const { noteDocumentId, articleDocumentId } = action.payload;
         const articleIndex = state.items.findIndex(a => a.documentId === articleDocumentId);
@@ -171,7 +158,7 @@ const articlesSlice = createSlice({
         }
       })
 
-      // ЗАГРУЗКА КОММЕНТАРИЕВ - обновляем notes в статье
+      // загрузка комментариев
       .addCase(fetchNotesByArticle.fulfilled, (state, action) => {
         const { articleId, notes } = action.payload;
         const articleIndex = state.items.findIndex(a => a.documentId === articleId);
@@ -184,7 +171,6 @@ const articlesSlice = createSlice({
 
 export const { clearArticlesError } = articlesSlice.actions;
 
-// селекторы
 export const selectArticles = (state: RootState) => state.articles.items;
 export const selectArticlesLoading = (state: RootState) => state.articles.loading;
 export const selectArticlesError = (state: RootState) => state.articles.error;

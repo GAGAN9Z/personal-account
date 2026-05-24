@@ -2,14 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '../../store';
 import { updateUserProfile } from '../../store/authSlice';
-import type { User, EditProfileFormData } from '../../utils/interfaces';
+import type { EditProfileFormData, EditProfileProps } from '../../utils/interfaces';
 import { validateEditProfile, type FormErrors } from '../../utils/validators';
 
-interface EditProfileProps {
-  user: User;
-  isOpen: boolean;
-  onClose: () => void;
-}
 
 const EditProfile: React.FC<EditProfileProps> = ({ user, isOpen, onClose }) => {
   const dispatch = useDispatch<AppDispatch>();

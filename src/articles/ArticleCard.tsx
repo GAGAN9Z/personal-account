@@ -1,11 +1,24 @@
 import React, { memo, useMemo, useState, useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from '../store';
-import { createNote, deleteNote, fetchNotesByArticle, selectNotesLoading } from '../store/notesSlice';
+import { selectNotesLoading } from '../store/notesSlice';
+import { createNote, deleteNote, fetchNotesByArticle } from '../store/notesThunks';
 import { validateComment } from '../utils/validators';
 import type { ArticleCardProps, Note } from '../utils/interfaces';
 
 const API_BASE_URL = 'http://localhost:1337';
+
+// добавление функции сравнения для memo
+const areEqual = (prevProps: ArticleCardProps, nextProps: ArticleCardProps) => {
+  return (
+    prevProps.article.documentId === nextProps.article.documentId &&
+    prevProps.article.title === nextProps.article.title &&
+    prevProps.article.content === nextProps.article.content &&
+    prevProps.article.notes?.length === nextProps.article.notes?.length &&
+    prevProps.currentUserDocumentId === nextProps.currentUserDocumentId &&
+    prevProps.onDelete === nextProps.onDelete
+  );
+};
 
 const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, currentUserDocumentId }) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -15,21 +28,19 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasLoadedComments, setHasLoadedComments] = useState(false);
   
-  // Получаем статусы загрузки
   const notesLoading = useSelector(selectNotesLoading);
-  
-  // Локальное состояние для комментариев этой статьи - всегда массив
   const [localNotes, setLocalNotes] = useState<Note[]>(article.notes || []);
   
-  // Обновляем локальные комментарии когда article обновляется (например, после перезагрузки страницы)
   useEffect(() => {
     if (article.notes) {
-      setLocalNotes(article.notes);
+      const sortedNotes = [...article.notes].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setLocalNotes(sortedNotes);
       setHasLoadedComments(true);
     }
   }, [article.notes]);
 
-  // Загружаем комментарии при открытии (только один раз)
   useEffect(() => {
     if (showComments && !hasLoadedComments && !notesLoading) {
       dispatch(fetchNotesByArticle(article.documentId)).then((action) => {
@@ -41,28 +52,7 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
     }
   }, [showComments, article.documentId, dispatch, hasLoadedComments, notesLoading]);
 
-  if (!article) return null;
-
-  const contentText = useMemo(() => {
-    return article.content?.[0]?.children?.[0]?.text || "Пустая публикация";
-  }, [article.content]);
-
-  const formattedDate = useMemo(() => {
-    return new Date(article.createdAt).toLocaleString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }, [article.createdAt]);
-
-  const isAuthor = currentUserDocumentId === article.author?.documentId;
-  const imageUrl = article.image?.url ? `${API_BASE_URL}${article.image.url}` : null;
-  
-  // Счетчик берем из локальных комментариев (они всегда актуальны)
-  const commentsCount = localNotes.length;
-
+  // мемоизация обработчиков, которые используются в JSX
   const handleToggleComments = useCallback(() => {
     setShowComments(prev => !prev);
   }, []);
@@ -89,7 +79,6 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
         author: currentUserDocumentId || ''
       })).unwrap();
       
-      // Добавляем новый комментарий в локальное состояние - счетчик обновится мгновенно
       setLocalNotes(prev => [result, ...prev]);
       setCommentText('');
       setCommentError(null);
@@ -104,7 +93,6 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
     if (!window.confirm('Удалить комментарий?')) return;
     try {
       await dispatch(deleteNote({ noteDocumentId, articleDocumentId: article.documentId })).unwrap();
-      // Удаляем комментарий из локального состояния - счетчик обновится мгновенно
       setLocalNotes(prev => prev.filter(n => n.documentId !== noteDocumentId));
     } catch (err) {
       console.error('Ошибка удаления комментария:', err);
@@ -114,6 +102,35 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
   const handleDeleteArticle = useCallback(() => {
     onDelete(article.documentId);
   }, [onDelete, article.documentId]);
+
+  // мемоизация вычисляемых значений
+  const contentText = useMemo(() => {
+    return article.content?.[0]?.children?.[0]?.text || "Пустая публикация";
+  }, [article.content]);
+
+  const formattedDate = useMemo(() => {
+    return new Date(article.createdAt).toLocaleString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, [article.createdAt]);
+
+  const isAuthor = useMemo(() =>
+    currentUserDocumentId === article.author?.documentId,
+    [currentUserDocumentId, article.author?.documentId]
+  );
+
+  const imageUrl = useMemo(() =>
+    article.image?.url ? `${API_BASE_URL}${article.image.url}` : null,
+    [article.image?.url]
+  );
+
+  const commentsCount = localNotes.length;
+
+  if (!article) return null;
 
   return (
     <article className="post-card">
@@ -212,7 +229,7 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
       )}
     </article>
   );
-});
+}, areEqual);
 
 ArticleCard.displayName = 'ArticleCard';
 export default ArticleCard;
