@@ -92,7 +92,6 @@ const Profile: React.FC = () => {
   
   const handleDeleteArticle = useCallback(async (documentId: string) => {
     if (!isAuth || !documentId) return;
-    if (!window.confirm("Вы уверены, что хотите удалить эту статью?")) return;
     
     try {
       await dispatch(deleteArticle(documentId)).unwrap();

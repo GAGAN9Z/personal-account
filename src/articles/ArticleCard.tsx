@@ -90,7 +90,6 @@ const ArticleCard: React.FC<ArticleCardProps> = memo(({ article, onDelete, curre
   }, [dispatch, commentText, article.documentId, currentUserDocumentId]);
 
   const handleDeleteComment = useCallback(async (noteDocumentId: string) => {
-    if (!window.confirm('Удалить комментарий?')) return;
     try {
       await dispatch(deleteNote({ noteDocumentId, articleDocumentId: article.documentId })).unwrap();
       setLocalNotes(prev => prev.filter(n => n.documentId !== noteDocumentId));
