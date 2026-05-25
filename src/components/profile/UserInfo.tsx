@@ -112,8 +112,8 @@ const UserInfo: React.FC<UserInfoProps> = memo(({ user, onLogout }) => {
           style={{ display: 'none' }}
         />
         
-        <h2 className="auth-title">{user.username}</h2>
-        <p className="auth-title">{user.email}</p>
+        <h2 className="profile-title">{user.username}</h2>
+        <p className="profile-email">{user.email}</p>
         
         {user.age && (
           <p className="profile-age">Возраст: {user.age} лет</p>

@@ -532,3 +532,28 @@ textarea.error:focus {
 .post-actions .link-btn.danger:hover {
   background: rgba(220, 38, 38, 0.1);
 }
+.auth-title,
+.profile-title,
+.create-post-title,
+.modal-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+.profile-card .auth-title {
+  margin: 8px 0;
+  font-size: 20px;
+}
+.profile-card .auth-title:first-of-type {
+  font-size: 24px;
+  margin-top: 0;
+}
+.create-post-title {
+  text-align: left;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--primary);
+  display: inline-block;
+}
